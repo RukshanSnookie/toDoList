@@ -2,9 +2,13 @@
 
 import java.io.File;
 import java.io.FileNotFoundException;
+import java.io.FileWriter;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Iterator;
 import java.util.List;
+import java.util.Optional;
 import java.util.Scanner;
 
 import javafx.application.Application;
@@ -13,6 +17,7 @@ import javafx.scene.Scene;
 import javafx.scene.control.Alert;
 import javafx.scene.control.Alert.AlertType;
 import javafx.scene.control.Button;
+import javafx.scene.control.ButtonType;
 import javafx.scene.control.Label;
 import javafx.scene.control.TextField;
 import javafx.scene.layout.HBox;
@@ -25,8 +30,8 @@ public class ToDoListGUI extends Application{
 	private Stage primaryStage;
 	private static String FILE_PATH = "Tasks.txt";  // file name
 	private static List<TaskWithStat> tasksList = new ArrayList<>();// Create an ArrayList to store tasks in the order
-	private static int width = Dimensions.getSceneWidth();
-	private static int height = Dimensions.getSceneHeight();
+	private static int WIDTH = Dimensions.getSceneWidth();
+	private static int HEIGHT = Dimensions.getSceneHeight();
 
 	public static void main(String[] args) {
 
@@ -65,7 +70,7 @@ public class ToDoListGUI extends Application{
 			navigateToMenu();
 			taskLoad();
 		});
-		return new Scene(vbox, width,height); //create the scene with the layout
+		return new Scene(vbox, WIDTH,HEIGHT); //create the scene with the layout
 	}
 	
 	// loading tasks from file if available
@@ -129,6 +134,22 @@ public class ToDoListGUI extends Application{
 		if(labelText.equals("Add Task")) {
 			addTasks();
 		}
+		else if(labelText.equals("View Tasks")) {
+			viewTasks();
+		}
+		else if (labelText.equals("Delete Task")) {
+			if(showDeleteConfirmation()) {
+				deleteTask();
+			}
+			else {
+				System.out.println("Delete task cancelled by user");
+			}
+		}
+		
+		else if(labelText.equals("Save and Exit")) {
+			saveTasksList();
+			primaryStage.close();
+		}
 		else {
 			System.out.println("return something");
 		}
@@ -167,7 +188,104 @@ public class ToDoListGUI extends Application{
 		});
 		addTaskLayout.getChildren().addAll(taskTextField, statusLabel, addTaskButton);//add UI components to the layout
 		
-		return new Scene(addTaskLayout, width,height);
+		return new Scene(addTaskLayout, WIDTH,HEIGHT);
+	}
+	
+	//View tasks method - setting viewTask scene to primary  page
+	private void viewTasks() {
+		primaryStage.setScene(viewTasksPage());
+	}
+	
+	//create & design viewTasks scene
+	private Scene viewTasksPage() {
+		VBox viewTasksLayout = new VBox(20);
+		viewTasksLayout.setAlignment(Pos.CENTER);
+		
+		addBackButton(viewTasksLayout, this :: navigateToMenu);  //adding a back button
+		
+		List<Label> tasksLabelsList = new ArrayList<>(); // declare a list of labels to hold tasks info
+		
+		tasksList.forEach(tasks -> {
+			Label taskLabel  = new Label(tasks.toString());
+			tasksLabelsList.add(taskLabel);
+		});
+		
+		viewTasksLayout.getChildren().addAll(tasksLabelsList);
+		return new Scene(viewTasksLayout, WIDTH, HEIGHT);
+	}
+	
+	//delete the task
+	private void deleteTask() {
+		primaryStage.setScene(deleteTaskPage());
+	}
+	
+	//delete confirmation pop up handle
+	private boolean showDeleteConfirmation() {
+		//create a confirmation dialog
+		Alert alert = new Alert(Alert.AlertType.CONFIRMATION);
+		alert.setTitle("Delete Confirmation");
+		alert.setHeaderText("Are you sure???");
+		
+		ButtonType yesButton = new ButtonType("Yes"); //create a 'yes' button
+		ButtonType noButton = new ButtonType("No"); // create a 'no' button 
+		
+		alert.getButtonTypes().setAll(yesButton, noButton); //setting buttons in alert box
+		
+		//show alert and wait for the user response
+		Optional<ButtonType> results = alert.showAndWait();
+		
+		return results.isPresent() && results.get()==yesButton;
+	}
+	
+	private Scene deleteTaskPage() {
+		VBox deleteTasksLayout = new VBox(20);
+		deleteTasksLayout.setAlignment(Pos.CENTER);
+		
+		addBackButton(deleteTasksLayout, this :: navigateToMenu);// adding a back button
+		
+		Label textLabel = new Label("Enter the task name");
+		TextField taskName = new TextField(); // creating a text field
+		taskName.setPromptText("Name of the deleting task"); // setting a prompt text
+		
+		Button delButton = new Button("Delete");	
+		
+		delButton.setOnAction(e -> {
+			String taskNameText = taskName.getText();
+			try {
+				boolean taskFound = false;
+				Iterator<TaskWithStat> iterate = tasksList.iterator(); // using Iterator to iterate through arraylist
+				while(iterate.hasNext()) {
+					TaskWithStat item = iterate.next();
+					if(item.task.trim().equalsIgnoreCase(taskNameText.trim())) {
+						if(showDeleteConfirmation()) {
+							iterate.remove(); // remove task from the list
+							System.out.println("Task deleted : ");
+							taskFound = true;
+							taskName.setText("");
+						}
+						else {
+							System.out.println("Delete cancelled");
+							taskFound = true;
+						}
+						break;
+					}
+				}
+				if(!taskFound) {
+					System.out.println("Wrong input of deletion");
+					Alert notFoundAlert = new Alert(Alert.AlertType.INFORMATION);
+					notFoundAlert.setTitle("Something went wrong!!!");
+					notFoundAlert.setHeaderText("Entered task not in the list.");
+					notFoundAlert.showAndWait();
+				}
+				
+			}
+			catch (Exception e2) {
+				System.out.println(e2);
+			}
+		});
+		
+		deleteTasksLayout.getChildren().addAll(textLabel,taskName,delButton);
+		return new Scene(deleteTasksLayout,WIDTH,HEIGHT);
 	}
 	
 	//Alert display
@@ -194,6 +312,21 @@ public class ToDoListGUI extends Application{
 		
 		backButtonBox.getChildren().addAll(backButton);
 		layout.getChildren().add(0, backButtonBox); // Add to the top of the layout
+	}
+	
+	//save list to a file
+	private void saveTasksList() {
+		System.out.println("\nSaving to a file");
+		
+		try(FileWriter writer = new FileWriter(FILE_PATH)){
+			for(TaskWithStat items : tasksList) {
+				writer.write(items.task + " , " + items.stat + System.lineSeparator()); // writing to the file
+			}
+			showAlert("File Saved","Exiting the program");
+		}
+		catch(IOException e) {
+			System.out.println("\nFile Save Error!!" + e.getMessage());
+		}
 	}
 	
 }
