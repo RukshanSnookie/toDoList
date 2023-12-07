@@ -32,7 +32,7 @@ public class ToDoListGUI extends Application{
 	private static List<TaskWithStat> tasksList = new ArrayList<>();// Create an ArrayList to store tasks in the order
 	private static int WIDTH = Dimensions.getSceneWidth();
 	private static int HEIGHT = Dimensions.getSceneHeight();
-
+	private static boolean taskFound = false;
 	public static void main(String[] args) {
 
 		launch(args);
@@ -145,6 +145,9 @@ public class ToDoListGUI extends Application{
 				System.out.println("Delete task cancelled by user");
 			}
 		}
+		else if(labelText.equals("Mark Task as Completed")) {
+			markTaskAsCompleted();
+		}
 		
 		else if(labelText.equals("Save and Exit")) {
 			saveTasksList();
@@ -155,6 +158,51 @@ public class ToDoListGUI extends Application{
 		}
 	}
 	
+	private void markTaskAsCompleted() {
+		primaryStage.setScene(markTaskAsCompletedPage());
+	}
+
+	private Scene markTaskAsCompletedPage() {
+		
+		VBox markTaskAsCompletedPageLayout = new VBox(20);
+		markTaskAsCompletedPageLayout.setAlignment(Pos.CENTER);
+		
+		addBackButton(markTaskAsCompletedPageLayout, this :: navigateToMenu); // add a back button to Menu
+		
+		TextField taskUpdateText = new TextField(); //adding a text field
+		taskUpdateText.setPromptText("Enter Your Completed Task Name");  // setting a prompt msg to display
+		
+		Label updateStatus = new Label("Status : COMPLETED"); // create a label to display the updating status
+		
+		Button updateTaskButton = new Button("Update");  // creating a button
+		
+		//set actions to the button
+		updateTaskButton.setOnAction(e -> {
+			try {
+				taskFound = false;
+				String taskTextValue = taskUpdateText.getText().trim();//get text from text field
+				for(TaskWithStat items : tasksList) {
+					if(items.task.trim().equalsIgnoreCase(taskTextValue)) {
+						items.stat = TaskWithStat.status.COMPLETED; // updating the task status
+						taskFound = true;
+						showAlert("Task Status Updated","Your Task Updated as 'COMPLETED'! ");
+						taskUpdateText.setText("");
+						break;
+					}
+				}
+				if(!taskFound) {
+					showAlert("Not Found","Please chcek your Tasks!!");
+				}
+			}
+			catch(Exception e3) {
+				System.out.println(e3);
+			}
+		});
+		taskFound = false;
+		markTaskAsCompletedPageLayout.getChildren().addAll(taskUpdateText,updateStatus,updateTaskButton);
+		return new Scene(markTaskAsCompletedPageLayout, WIDTH,HEIGHT);
+	}
+
 	// addtasks method- setting add task scene to primary stage
 	private void addTasks() {
 		primaryStage.setScene(addTaskPage());
@@ -252,7 +300,6 @@ public class ToDoListGUI extends Application{
 		delButton.setOnAction(e -> {
 			String taskNameText = taskName.getText();
 			try {
-				boolean taskFound = false;
 				Iterator<TaskWithStat> iterate = tasksList.iterator(); // using Iterator to iterate through arraylist
 				while(iterate.hasNext()) {
 					TaskWithStat item = iterate.next();
@@ -262,6 +309,7 @@ public class ToDoListGUI extends Application{
 							System.out.println("Task deleted : ");
 							taskFound = true;
 							taskName.setText("");
+							showAlert("Delete Task","Task Deleted");
 						}
 						else {
 							System.out.println("Delete cancelled");
@@ -272,10 +320,7 @@ public class ToDoListGUI extends Application{
 				}
 				if(!taskFound) {
 					System.out.println("Wrong input of deletion");
-					Alert notFoundAlert = new Alert(Alert.AlertType.INFORMATION);
-					notFoundAlert.setTitle("Something went wrong!!!");
-					notFoundAlert.setHeaderText("Entered task not in the list.");
-					notFoundAlert.showAndWait();
+					showAlert("Not Found", "Please check your task!!");;
 				}
 				
 			}
@@ -285,6 +330,7 @@ public class ToDoListGUI extends Application{
 		});
 		
 		deleteTasksLayout.getChildren().addAll(textLabel,taskName,delButton);
+		taskFound = false;
 		return new Scene(deleteTasksLayout,WIDTH,HEIGHT);
 	}
 	
